@@ -1,0 +1,94 @@
+let
+    Source = SII_Files,
+
+    ExpandExcel =
+        Table.ExpandTableColumn(
+            Source,
+            "Excel",
+            {"Item","Kind","Data"}
+        ),
+
+    Filtrar =
+        Table.SelectRows(
+            ExpandExcel,
+            each [Item]="Detalle_Dias_De_Estadia"
+        ),
+
+    Transformar =
+        Table.AddColumn(
+            Filtrar,
+            "Tabla",
+            each
+                let
+                    skip = Table.Skip([Data],5),
+                    headers = Table.PromoteHeaders(skip,[PromoteAllScalars=true])
+                in
+                    headers
+        ),
+
+    Expand =
+        Table.ExpandTableColumn(
+            Transformar,
+            "Tabla",
+            {
+                "NRO_BENEFICIO",
+                "APELLIDO_Y_NOMBRE",
+                "N_PRESTACION",
+                "DIAS_UTI",
+                "DIAS_UCE",
+                "DIAS_PISO",
+                "DIAS_GUARDIA"
+            }
+        ),
+
+    Rename =
+        Table.RenameColumns(
+            Expand,
+            {{"NRO_BENEFICIO","NRO_AFILIADO"}}
+        ),
+
+    SourceFile =
+        Table.RenameColumns(
+            Rename,
+            {{"Name","SourceFile"}}
+        ),
+
+    Types =
+        Table.TransformColumnTypes(
+            SourceFile,
+            {
+                {"DIAS_UTI", Int64.Type},
+                {"DIAS_UCE", Int64.Type},
+                {"DIAS_PISO", Int64.Type},
+                {"DIAS_GUARDIA", Int64.Type}
+            }
+        ),
+
+    Total =
+        Table.AddColumn(
+            Types,
+            "DIAS_TOTAL",
+            each
+                [DIAS_UTI] +
+                [DIAS_UCE] +
+                [DIAS_PISO] +
+                [DIAS_GUARDIA],
+            Int64.Type
+        ),
+
+    PK =
+        Table.AddColumn(
+            Total,
+            "PK",
+            each
+                Text.Combine(
+                    {
+                        Text.From([NRO_AFILIADO]),
+                        Text.From([N_PRESTACION])
+                    },"-"
+                )
+        ),
+    #"Removed Columns" = Table.RemoveColumns(PK,{"Content", "Folder Path", "Item", "Kind", "Data"})
+
+in
+    #"Removed Columns"
