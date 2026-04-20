@@ -1,0 +1,60 @@
+let
+    Source = Gestion_Files,
+
+    ExpandExcel =
+        Table.ExpandTableColumn(
+            Source,
+            "Excel",
+            {"Item","Kind","Data"}
+        ),
+
+    FiltrarHoja =
+        Table.SelectRows(
+            ExpandExcel,
+            each [Item] = "Hoja1"
+        ),
+
+    Transformar =
+        Table.AddColumn(
+            FiltrarHoja,
+            "Tabla",
+            each Table.PromoteHeaders([Data],[PromoteAllScalars=true])
+        ),
+
+    Expand =
+        Table.ExpandTableColumn(
+            Transformar,
+            "Tabla",
+            {
+                "PacienteNombre",
+                "PracticaCod",
+                "PracticaNombre",
+                "MutualCod",
+                "MutualNombre",
+                "AsociacionIntermedia",
+                "PrestadorNombre",
+                "Cantidad",
+                "Fecha",
+                "PeriodoAno"
+            }
+        ),
+
+    Rename =
+        Table.RenameColumns(
+            Expand,
+            {{"Name","SourceFile"}}
+        ),
+
+    Types =
+        Table.TransformColumnTypes(
+            Rename,
+            {
+                {"PracticaCod", type text},
+                {"Cantidad", Int64.Type},
+                {"Fecha", type date},
+                {"PeriodoAno", Int64.Type}
+            }
+        )
+
+in
+    Types
