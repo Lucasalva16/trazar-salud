@@ -1,0 +1,12 @@
+let
+// Ingesta de datos Sharepoint
+  SharePointFolder = SharePoint.Files(SiteURL, [ApiVersion = 15]),
+  ArchivoExcel = SharePointFolder{[Name = "Capitas_Valor.xlsx"]}[Content],
+  Origen = Excel.Workbook(ArchivoExcel, null, true),
+  Navegación = Origen{[Item = "Planilha1", Kind = "Sheet"]}[Data],
+  PromoteHeaders = Table.PromoteHeaders(Navegación, [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(PromoteHeaders, {{"Valor_capita", type number}, {"Fecha_Capita", type date}, {"Modulo", type text}}),
+    #"Inserted Merged Column" = Table.AddColumn(#"Tipo de columna cambiado", "PK_Capitas", each Text.Combine({[Modulo], Text.From([Fecha_Capita], "es-AR")}, "-"), type text)
+
+in
+  #"Inserted Merged Column"
