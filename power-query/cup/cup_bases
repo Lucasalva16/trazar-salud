@@ -1,0 +1,61 @@
+let
+    Source = CUP_Files,
+
+    ExpandExcel =
+        Table.ExpandTableColumn(
+            Source,
+            "Excel",
+            {"Item","Kind","Data"}
+        ),
+
+    FiltrarHoja =
+        Table.SelectRows(
+            ExpandExcel,
+            each [Item] = "in"
+        ),
+
+    ExtraerMes =
+        Table.AddColumn(
+            FiltrarHoja,
+            "MesAño",
+            each Text.BetweenDelimiters([Name],"CUP_",".xlsx"),
+            type text
+        ),
+
+    Transformar =
+        Table.AddColumn(
+            ExtraerMes,
+            "Tabla",
+            each Table.PromoteHeaders([Data],[PromoteAllScalars=true])
+        ),
+
+    Expand =
+        Table.ExpandTableColumn(
+            Transformar,
+            "Tabla",
+            {
+                "NRO. ORDEN",
+                "FECHA EMISIÓN",
+                "NRO. BENEFICIO/GP",
+                "APELLIDO Y NOMBRE",
+                "PRÁCTICA",
+                "TURNO",
+                "U. ACEPTO",
+                "FECHA ACEPTO",
+                "TRASMITIDA",
+                "F TRANSMITIDA",
+                "USUARIO TRANSMITIO",
+                "VALIDADA",
+                "F VALIDACION",
+                "USUARIO VALIDO"
+            }
+        ),
+
+    Rename =
+        Table.RenameColumns(
+            Expand,
+            {{"Name","SourceFile"}}
+        )
+
+in
+    Rename
