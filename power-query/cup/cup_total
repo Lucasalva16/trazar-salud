@@ -1,0 +1,193 @@
+let
+    Source = CUP_Base,
+
+    #"Crear fecha mes" =
+        Table.AddColumn(
+            Source,
+            "Fecha_Mes",
+            each
+                let
+                    m = Text.Start([MesAño],3),
+                    y = "20" & Text.End([MesAño],2),
+                    mes =
+                        if m="Ene" then 1 else
+                        if m="Feb" then 2 else
+                        if m="Mar" then 3 else
+                        if m="Abr" then 4 else
+                        if m="May" then 5 else
+                        if m="Jun" then 6 else
+                        if m="Jul" then 7 else
+                        if m="Ago" then 8 else
+                        if m="Sep" then 9 else
+                        if m="Oct" then 10 else
+                        if m="Nov" then 11 else
+                        if m="Dic" then 12
+                        else null
+                in
+                    #date(Number.FromText(y),mes,1),
+            type date
+        ),
+
+    #"Convertir fechas GMT-3" =
+        Table.TransformColumns(
+            #"Crear fecha mes",
+            {
+                {
+                    "Date modified",
+                    each
+                        let dt = try DateTime.From(_) otherwise null
+                        in if dt=null then null else DateTimeZone.RemoveZone(DateTimeZone.SwitchZone(DateTime.AddZone(dt,0),0)),
+                    type datetime
+                },
+                {
+                    "Date created",
+                    each
+                        let dt = try DateTime.From(_) otherwise null
+                        in if dt=null then null else DateTimeZone.RemoveZone(DateTimeZone.SwitchZone(DateTime.AddZone(dt,0),0)),
+                    type datetime
+                }
+            }
+        ),
+
+    #"Tipo de columna cambiado" =
+        Table.TransformColumnTypes(
+            #"Convertir fechas GMT-3",
+            {
+                {"NRO. ORDEN", Int64.Type},
+                {"FECHA EMISIÓN", type datetime},
+                {"NRO. BENEFICIO/GP", type text},
+                {"APELLIDO Y NOMBRE", type text},
+                {"PRÁCTICA", type text},
+                {"TURNO", type text},
+                {"U. ACEPTO", type text},
+                {"FECHA ACEPTO", type datetime},
+                {"TRASMITIDA", type text},
+                {"F TRANSMITIDA", type datetime},
+                {"USUARIO TRANSMITIO", type text},
+                {"VALIDADA", type text},
+                {"F VALIDACION", type datetime},
+                {"USUARIO VALIDO", type text}
+            },
+            "es"
+        ),
+
+    Dividir_FEmision =
+        Table.SplitColumn(
+            Table.TransformColumnTypes(#"Tipo de columna cambiado",{{"FECHA EMISIÓN",type text}}),
+            "FECHA EMISIÓN",
+            Splitter.SplitTextByDelimiter(" "),
+            {"FECHA EMISIÓN","FECHA EMISIÓN.2"}
+        ),
+
+    Dividir_FTurno =
+        Table.SplitColumn(
+            Table.TransformColumnTypes(Dividir_FEmision,{{"TURNO",type text}}),
+            "TURNO",
+            Splitter.SplitTextByDelimiter(" "),
+            {"TURNO","TURNO.2","TURNO.3","TURNO.4","TURNO.5"}
+        ),
+
+    Dividir_FAcepto =
+        Table.SplitColumn(
+            Table.TransformColumnTypes(Dividir_FTurno,{{"FECHA ACEPTO",type text}}),
+            "FECHA ACEPTO",
+            Splitter.SplitTextByDelimiter(" "),
+            {"FECHA ACEPTO","FECHA ACEPTO.2"}
+        ),
+
+    Dividir_FTransmitida =
+        Table.SplitColumn(
+            Table.TransformColumnTypes(Dividir_FAcepto,{{"F TRANSMITIDA",type text}}),
+            "F TRANSMITIDA",
+            Splitter.SplitTextByDelimiter(" "),
+            {"F TRANSMITIDA","F TRANSMITIDA.2"}
+        ),
+
+    Columnas_quitadas =
+        Table.RemoveColumns(
+            Dividir_FTransmitida,
+            {"FECHA EMISIÓN.2","TURNO.2","TURNO.3","TURNO.4","TURNO.5","FECHA ACEPTO.2","F TRANSMITIDA.2","Kind"}
+        ),
+
+    Tipo_Cambiado =
+        Table.TransformColumnTypes(
+            Columnas_quitadas,
+            {
+                {"FECHA EMISIÓN",type date},
+                {"TURNO",type date},
+                {"FECHA ACEPTO",type date},
+                {"F TRANSMITIDA",type date},
+                {"F VALIDACION",type datetime},
+                {"MesAño",type text},
+                {"Fecha_Mes",type date}
+            }
+        ),
+
+    Extraer_Practica =
+        Table.AddColumn(
+            Tipo_Cambiado,
+            "Texto Antes do Delimitador",
+            each Text.BeforeDelimiter([PRÁCTICA]," "),
+            type text
+        ),
+
+    Nombre_Cambiado1 =
+        Table.RenameColumns(
+            Extraer_Practica,
+            {{"Texto Antes do Delimitador","Cód. Práctica"}}
+        ),
+
+    Nombre_Cambiado2 =
+        Table.RenameColumns(
+            Nombre_Cambiado1,
+            {{"NRO. BENEFICIO/GP","nro_afiliado"}}
+        ),
+
+    Estandarizar_NroAfiliado =
+        Table.TransformColumns(
+            Nombre_Cambiado2,
+            {
+                {"nro_afiliado",
+                    each
+                        let
+                            texto = Text.Trim(_),
+                            base = Text.Start(texto,Text.Length(texto)-2),
+                            sufijo = Text.End(texto,2),
+                            sufijoFinal =
+                                if sufijo="00" then "0"
+                                else if Text.Start(sufijo,1)="0" then Text.End(sufijo,1)
+                                else sufijo
+                        in base & sufijoFinal,
+                    type text
+                }
+            }
+        ),
+
+    FK_Paciente =
+        Table.AddColumn(
+            Estandarizar_NroAfiliado,
+            "FK_Gestion",
+            each Text.Combine({Text.From([TURNO],"es-AR"),Text.From([APELLIDO Y NOMBRE],"es-AR"),[Cód. Práctica]},"-"),
+            type text
+        ),
+
+    FK_Nomenclador =
+        Table.AddColumn(
+            FK_Paciente,
+            "FK_Nomenclador",
+            each Text.Combine({Text.From(Date.StartOfMonth([TURNO]),"es-AR"),[Cód. Práctica]},"-"),
+            type text
+        ),
+
+    Ajustar_NullAfiliado =
+        Table.ReplaceValue(
+            FK_Nomenclador,
+            null,
+            "0",
+            Replacer.ReplaceValue,
+            {"nro_afiliado"}
+        ),
+    #"Removed Columns" = Table.RemoveColumns(Ajustar_NullAfiliado,{"Content", "SourceFile", "Date modified", "Date created", "Item", "Data"})
+
+in
+    #"Removed Columns"
