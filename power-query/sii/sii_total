@@ -1,0 +1,58 @@
+let
+    Source = SII_Base_Practicas,
+
+    Tipo =
+        Table.AddColumn(
+            Source,
+            "TIPO",
+            each
+                if [MODALIDAD_PRESTACION]="AFILIADO PROPIO"
+                then "PROPIO"
+                else "OP"
+        ),
+
+    Filter =
+        Table.SelectRows(
+            Tipo,
+            each
+                [CODIGO_MODULO]<>322 and
+                [CODIGO_MODULO]<>323 and
+                [CODIGO_MODULO]<>324
+        ),
+    #"Changed Type" = Table.TransformColumnTypes(Filter,{{"C_PRACTICA", type text}}),
+
+    FK_Nomenclador =
+        Table.AddColumn(
+            #"Changed Type",
+            "FK_Nomenclador",
+            each
+                Text.Combine(
+                    {
+                        Text.From([Fecha],"es-AR"),
+                        [C_PRACTICA]
+                    },"-"
+                )
+        ),
+    FK_Geclisa =
+        Table.AddColumn(
+            FK_Nomenclador,
+            "FK_Geclisa",
+            each
+                Text.Combine(
+                    {
+                        Text.From([FECHA_DE_PRESTACION],"es-AR"),
+                        [NRO_AFILIADO],
+                        [C_PRACTICA]
+                    },"-"
+                )
+        ),
+
+    Distinct =
+        Table.Distinct(
+            FK_Geclisa,
+            {"FK_Internacion"}
+        ),
+    #"Changed Type1" = Table.TransformColumnTypes(Distinct,{{"NRO_PRESTACION", type text}, {"TIPO_DE_PRESTACION", type text}, {"NRO_AFILIADO", type text}, {"NRO_ORDEN_DE_PRESTACION", type text}, {"MATRICULA", type text}, {"CODIGO_MODULO", Int64.Type}, {"C_PRACTICA", type text}, {"CANTIDAD", Int64.Type}, {"NRO_ORDEN_PRESTACION_PRACTICA", type text}, {"PK", type text}, {"FK_Internacion", type text}, {"TIPO", type text}, {"FK_Nomenclador", type text}, {"FK_Geclisa", type text}})
+
+in
+    #"Changed Type1"
