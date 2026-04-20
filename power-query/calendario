@@ -1,0 +1,36 @@
+let
+    // Fechas de inicio y fin
+    FechaInicio = #date(2024, 1, 1),
+    FechaFin = #date(2027, 12, 31),
+
+    // Lista de fechas
+    Dias = Duration.Days(FechaFin - FechaInicio) + 1,
+    TablaFechas = List.Dates(FechaInicio, Dias, #duration(1,0,0,0)),
+    Tabla = Table.FromList(TablaFechas, Splitter.SplitByNothing(), {"Fecha"}),
+    TiposCambiados = Table.TransformColumnTypes(Tabla, {{"Fecha", type date}}),
+
+    // Columnas básicas
+    ColMes = Table.AddColumn(TiposCambiados, "Mes", each Date.MonthName([Fecha]), type text),
+    ColAño = Table.AddColumn(ColMes, "Año", each Date.Year([Fecha]), Int64.Type),
+    ColMesNumero = Table.AddColumn(ColAño, "MesNumero", each Date.Month([Fecha]), Int64.Type),
+
+    // MesAño y orden
+    ColMesAño = Table.AddColumn(ColMesNumero, "MesAño", each Text.PadStart(Text.From([MesNumero]), 2, "0") & "-" & Text.From([Año]), type text),
+    ColOrdenMesAño = Table.AddColumn(ColMesAño, "OrdenMesAño", each [Año] * 100 + [MesNumero], Int64.Type),
+
+    // Trimestres
+    ColQuarterNum = Table.AddColumn(ColOrdenMesAño, "QuarterNum", each Date.QuarterOfYear([Fecha]), Int64.Type),
+    ColQuarter = Table.AddColumn(ColQuarterNum, "Quarter", each "Q" & Text.From([QuarterNum]), type text),
+    QuitarQuarterNum = Table.RemoveColumns(ColQuarter, {"QuarterNum"}),
+
+    // Inicio de mes
+    ColInicioMes = Table.AddColumn(QuitarQuarterNum, "Inicio_Mes", each Date.StartOfMonth([Fecha]), type date),
+
+    // Agregar Semestre
+    AgregarSemestre = Table.AddColumn(ColInicioMes, "Semestre", each if Date.Month([Fecha]) <= 6 then 1 else 2,  Int64.Type),
+    #"Inserted First Characters" = Table.AddColumn(AgregarSemestre, "First Characters", each Text.Start([Mes], 3), type text),
+    #"Renamed Columns" = Table.RenameColumns(#"Inserted First Characters",{{"First Characters", "Short_Mes"}}),
+    #"Inserted Week of Month" = Table.AddColumn(#"Renamed Columns", "Week of Month", each Date.WeekOfMonth([Fecha]), Int64.Type)
+
+in
+    #"Inserted Week of Month"
