@@ -1,0 +1,23 @@
+# CUP - Clasificador Único de Prestaciones
+
+El CUP se utiliza como referencia para clasificar prácticas médicas
+provenientes del sistema SII.
+
+## Fuente
+
+Archivo Excel mantenido por el área médica.
+
+## Campos relevantes
+
+- codigo_cup
+- descripcion
+- especialidad
+- categoria
+
+## Uso en el modelo
+
+Se utiliza para:
+
+- enriquecer la dimensión de prácticas
+- agrupar prácticas médicas
+- análisis por especialidad
