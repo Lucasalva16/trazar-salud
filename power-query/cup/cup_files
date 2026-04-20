@@ -1,7 +1,7 @@
 let
     Source =
         SharePoint.Files(
-            "https://trazarsalud.sharepoint.com/sites/VillaDolores",
+            SiteURL,
             [ApiVersion = 15]
         ),
 
