@@ -1,0 +1,60 @@
+let
+    Source = Errores_Files,
+
+    ExpandExcel =
+        Table.ExpandTableColumn(
+            Source,
+            "Excel",
+            {"Item","Kind","Data"}
+        ),
+
+    SoloSheets =
+        Table.SelectRows(
+            ExpandExcel,
+            each [Kind] = "Sheet"
+        ),
+
+    Transformar =
+        Table.AddColumn(
+            SoloSheets,
+            "Tabla",
+            each Table.PromoteHeaders([Data],[PromoteAllScalars=true])
+        ),
+
+    Expand =
+        Table.ExpandTableColumn(
+            Transformar,
+            "Tabla",
+            {
+                "Periodo",
+                "Tipo de Validación",
+                "Descripción del Error",
+                "Fecha de Prestación",
+                "Tipo de Prestación",
+                "Nro Afiliado",
+                "Modalidad Prestación",
+                "Módulo",
+                "Código de Práctica",
+                "Descripción de la Práctica"
+            }
+        ),
+
+    Rename =
+        Table.RenameColumns(
+            Expand,
+            {{"Name","SourceFile"}}
+        ),
+
+    Types =
+        Table.TransformColumnTypes(
+            Rename,
+            {
+                {"Fecha de Prestación", type date},
+                {"Código de Práctica", type text},
+                {"Nro Afiliado", type text},
+                {"Módulo", Int64.Type}
+            }
+        )
+
+in
+    Types
