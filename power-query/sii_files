@@ -1,0 +1,35 @@
+let
+    Source =
+        SharePoint.Files(
+            "https://trazarsalud.sharepoint.com/sites/VillaDolores",
+            [ApiVersion = 15]
+        ),
+
+    FiltrarCarpeta =
+        Table.SelectRows(
+            Source,
+            each Text.Contains([Folder Path],"SII")
+        ),
+
+    SoloExcel =
+        Table.SelectRows(
+            FiltrarCarpeta,
+            each Text.StartsWith([Name],"SII_")
+            and Text.EndsWith([Name],".xlsx")
+        ),
+
+    Keep =
+        Table.SelectColumns(
+            SoloExcel,
+            {"Content","Name","Folder Path"}
+        ),
+
+    Excel =
+        Table.AddColumn(
+            Keep,
+            "Excel",
+            each Excel.Workbook([Content],null,true)
+        )
+
+in
+    Excel
