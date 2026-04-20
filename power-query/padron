@@ -1,0 +1,14 @@
+let
+// Ingesta de datos Sharepoint
+  SharePointFolder = SharePoint.Files(SiteURL, [ApiVersion = 15]),
+  ArchivoExcel = SharePointFolder{[Name = "Padron.xlsx"]}[Content],
+  Origen = Excel.Workbook(ArchivoExcel, null, true),
+    #"Hoja 1_Sheet" = Origen{[Item="Hoja 1",Kind="Sheet"]}[Data],
+    #"Promoted Headers" = Table.PromoteHeaders(#"Hoja 1_Sheet", [PromoteAllScalars=true]),
+    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"Nro. de Beneficio",  type text}, {"Grado de Parentesco",  type text}, {"Apellido y Nombre", type text}, {"Tipo Documento", type text}, {"Nro. Documento", Int64.Type}, {"Fecha de Nacimiento", type date}, {"Modulos", type text}}),
+    #"Inserted Merged Column" = Table.AddColumn(#"Changed Type", "nro_afiliado", each Text.Combine({[Nro. de Beneficio], [Grado de Parentesco]}, ""), type text),
+    #"Changed Type2" = Table.TransformColumnTypes(#"Inserted Merged Column",{{"nro_afiliado", type text}}),
+    #"Removed Duplicates" = Table.Distinct(#"Changed Type2", {"nro_afiliado"}),
+    #"Filtered Rows" = Table.SelectRows(#"Removed Duplicates", each ([Modulos] <> "25" and [Modulos] <> "35" and [Modulos] <> "69"))
+in
+    #"Filtered Rows"
