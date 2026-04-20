@@ -1,0 +1,72 @@
+let
+    Source = Errores_Base,
+
+    FK_Nomenclador =
+        Table.AddColumn(
+            Source,
+            "FK_Nomenclador",
+            each
+                Text.Combine({
+                    Text.From([Periodo],"es-AR"),
+                    Text.From([Código de Práctica])
+                },"-"),
+            type text
+        ),
+
+    Error_Tratado =
+        Table.AddColumn(
+            FK_Nomenclador,
+            "Error_Tratado",
+            each
+                if [Descripción del Error]="PRACTICAS EXCLUYENTES" then "Prácticas Excluyentes"
+                else if [Descripción del Error]="SOLAPAMIENTOS CON INTERNACIONES" then "Solapamiento c/ Internaciones"
+                else if [Descripción del Error]="PRACTICAS INCLUYENTES" then "Prácticas Incluyentes"
+                else if [Descripción del Error]="VALORIZACION PARCIAL POR UMBRALES SEGUN RESOL-2024-2713-INSSJP-DE#INSSJP" then "Valorización parcial por umbrales"
+                else if [Descripción del Error]="FECHA OME" then "Fecha OME"
+                else if [Descripción del Error]="PACIENTE FALLECIDO SE RECONOCE % DEL MODULO" then "Paciente fallecido"
+                else "Otros"
+        ),
+
+    EstandarizarAfiliado =
+        Table.TransformColumns(
+            Error_Tratado,
+            {
+                {"Nro Afiliado",
+                each
+                    let
+                        texto = Text.Trim(_),
+                        partes = Text.Split(texto,"-"),
+                        base = Text.Select(partes{0},{"0".."9"}),
+                        sufijo = Text.Select(Text.Trim(partes{1}),{"0".."9"}),
+                        sufijoFinal =
+                            if sufijo="00" then "0"
+                            else if Text.Start(sufijo,1)="0" and Text.Length(sufijo)=2
+                            then Text.End(sufijo,1)
+                            else sufijo
+                    in base & sufijo
+                , type text}
+            }
+        ),
+
+    FK_Geclisa =
+        Table.AddColumn(
+            EstandarizarAfiliado,
+            "FK_Geclisa",
+            each
+                Text.Combine({
+                    Text.From([Fecha de Prestación],"es-AR"),
+                    [Nro Afiliado],
+                    Text.From([Código de Práctica])
+                },"-")
+        ),
+
+    Filter =
+        Table.SelectRows(
+            FK_Geclisa,
+            each [Tipo de Prestación] = "AMBULATORIO"
+        ),
+    #"Removed Columns" = Table.RemoveColumns(Filter,{"Content", "Folder Path", "Item", "Kind", "Data"}),
+    #"Changed Type" = Table.TransformColumnTypes(#"Removed Columns",{{"Periodo", type date}})
+
+in
+    #"Changed Type"
