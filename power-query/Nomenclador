@@ -1,0 +1,16 @@
+let
+// Ingesta de datos Sharepoint
+  SharePointFolder = SharePoint.Files("https://trazarsalud.sharepoint.com/sites/Documentos", [ApiVersion = 15]),
+  ArchivoExcel = SharePointFolder{[Name = "Nomenclador.xlsx"]}[Content],
+  Origen = Excel.Workbook(ArchivoExcel, null, true),
+  Navegación = Origen{[Item = "Planilha1", Kind = "Sheet"]}[Data],
+  #"Encabezados promovidos" = Table.PromoteHeaders(Navegación, [PromoteAllScalars = true]),
+  #"Columna combinada insertada" = Table.AddColumn(#"Encabezados promovidos", "PK", each Text.Combine({Text.From([Fecha]), Text.From([CÓDIGO DE PRÁCTICA])}, "-"), type text),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Columna combinada insertada", {{"CÓDIGO DE MÓDULO", Int64.Type}, {"DESCRIPCIÓN DE MÓDULO", type text}, {"DESCRIPCIÓN DE PRÁCTICA", type text}, {"Fecha", type date}, {"Importe", type number}, {"CÓDIGO DE PRÁCTICA", Int64.Type}, {"TIPO", type text}}, "es"),
+  #"Duplicados quitados" = Table.Distinct(#"Tipo de columna cambiado", {"PK"}),
+    #"Inserted Merged Column" = Table.AddColumn(#"Duplicados quitados", "Modulo_Completo", each Text.Combine({Text.From([CÓDIGO DE MÓDULO], "es-AR"), [DESCRIPCIÓN DE MÓDULO]}, "-"), type text),
+    #"Inserted Text Before Delimiter" = Table.AddColumn(#"Inserted Merged Column", "Text Before Delimiter", each Text.BeforeDelimiter([DESCRIPCIÓN DE PRÁCTICA], "("), type text),
+    #"Renamed Columns" = Table.RenameColumns(#"Inserted Text Before Delimiter",{{"Text Before Delimiter", "Short_Practica"}})
+
+in
+  #"Renamed Columns"
