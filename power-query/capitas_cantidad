@@ -1,0 +1,15 @@
+let
+// Ingesta de datos Sharepoint
+  SharePointFolder = SharePoint.Files(SiteURL, [ApiVersion = 15]),
+  ArchivoExcel = SharePointFolder{[Name = "Capitas_Cantidad.xlsx"]}[Content],
+  Origen = Excel.Workbook(ArchivoExcel, null, true),
+  Navegación = Origen{[Item = "Capitas_Cantidad", Kind = "Sheet"]}[Data],
+  #"Encabezados promovidos" = Table.PromoteHeaders(Navegación, [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"Concepto", type text}, {"Período", type date}, {"Capita", Int64.Type}, {"Forma de pago", type text}, {"Modalidad", type text}, {"Cantidad", Int64.Type}, {"Total", type number}}, "es"),
+    #"Inserted Merged Column" = Table.AddColumn(#"Tipo de columna cambiado", "FK_Capitas", each Text.Combine({Text.From([Capita], "es-AR"), Text.From([Período], "es-AR")}, "-"), type text),
+    #"Removed Columns" = Table.RemoveColumns(#"Inserted Merged Column",{"Column8"}),
+    #"Removed Blank Rows" = Table.SelectRows(#"Removed Columns", each not List.IsEmpty(List.RemoveMatchingItems(Record.FieldValues(_), {"", null}))),
+    #"Removed Duplicates" = Table.Distinct(#"Removed Blank Rows", {"FK_Capitas"})
+
+in
+  #"Removed Duplicates"
