@@ -1,0 +1,34 @@
+let
+    Source =
+        SharePoint.Files(
+            SiteURL,
+            [ApiVersion = 15]
+        ),
+
+    Carpeta =
+        Table.SelectRows(
+            Source,
+            each Text.Contains([Folder Path],"Gestión")
+        ),
+
+    Excel =
+        Table.SelectRows(
+            Carpeta,
+            each Text.EndsWith([Name],".xlsx")
+        ),
+
+    Keep =
+        Table.SelectColumns(
+            Excel,
+            {"Content","Name"}
+        ),
+
+    Workbook =
+        Table.AddColumn(
+            Keep,
+            "Excel",
+            each Excel.Workbook([Content],null,true)
+        )
+
+in
+    Workbook
