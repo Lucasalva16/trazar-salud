@@ -1,0 +1,58 @@
+let
+    Source = SII_Base_Dias,
+
+    Rename =
+        Table.RenameColumns(
+            Source,
+            {
+                {"DIAS_UTI","UTI"},
+                {"DIAS_UCE","UCE"},
+                {"DIAS_PISO","PISO"},
+                {"DIAS_GUARDIA","GUARDIA"}
+            }
+        ),
+
+    Group =
+        Table.Group(
+            Rename,
+            {"PK"},
+            {
+                {"N_PRESTACION", each List.Max([N_PRESTACION]), Int64.Type},
+                {"UTI", each List.Sum([UTI]), Int64.Type},
+                {"UCE", each List.Sum([UCE]), Int64.Type},
+                {"PISO", each List.Sum([PISO]), Int64.Type},
+                {"GUARDIA", each List.Sum([GUARDIA]), Int64.Type},
+                {"DIAS_TOTAL", each List.Sum([DIAS_TOTAL]), Int64.Type},
+                {"NRO_AFILIADO", each List.Max([NRO_AFILIADO]), Int64.Type}
+            }
+        ),
+
+    MergeInternaciones =
+        Table.NestedJoin(
+            Group,
+            {"PK"},
+            SII_Base_Internaciones,
+            {"PK"},
+            "Internacion",
+            JoinKind.LeftOuter
+        ),
+
+    ExpandInternacion =
+        Table.ExpandTableColumn(
+            MergeInternaciones,
+            "Internacion",
+            {
+                "Fecha",
+                "AREA",
+                "MOTIVO_DE_EGRESO",
+                "OBSERVACION"
+            }
+        ),
+    #"Removed Duplicates" = Table.Distinct(ExpandInternacion, {"PK"}),
+    #"Changed Type" = Table.TransformColumnTypes(#"Removed Duplicates",{{"AREA", type text}, {"MOTIVO_DE_EGRESO", type text}, {"OBSERVACION", type text}, {"NRO_AFILIADO", type text}, {"PK", type text}}),
+    #"Merged Queries" = Table.NestedJoin(#"Changed Type", {"NRO_AFILIADO"}, Padron, {"Nro. de Beneficio"}, "Padron", JoinKind.LeftOuter),
+    #"Expanded Padron" = Table.ExpandTableColumn(#"Merged Queries", "Padron", {"Apellido y Nombre"}, {"Apellido y Nombre"}),
+    #"Removed Duplicates1" = Table.Distinct(#"Expanded Padron", {"PK"})
+
+in
+    #"Removed Duplicates1"
