@@ -1,0 +1,10 @@
+let
+// Ingesta de datos Sharepoint
+  SharePointFolder = SharePoint.Files(SiteURL, [ApiVersion = 15]),
+  ArchivoExcel = SharePointFolder{[Name = "Umbrales.xlsx"]}[Content],
+  Origen = Excel.Workbook(ArchivoExcel, null, true),
+  Navegación = Origen{[Item = "Umbrales", Kind = "Sheet"]}[Data],
+  PromoteHeaders = Table.PromoteHeaders(Navegación, [PromoteAllScalars = true]),
+    #"Changed Type" = Table.TransformColumnTypes(PromoteHeaders,{{"Umbrales", type number}, {"Mes", type date}})
+in
+    #"Changed Type"
