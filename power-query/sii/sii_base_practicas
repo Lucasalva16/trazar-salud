@@ -1,0 +1,114 @@
+let
+    Source = SII_Files,
+
+    ExpandExcel =
+        Table.ExpandTableColumn(
+            Source,
+            "Excel",
+            {"Item","Kind","Data"}
+        ),
+
+    FiltrarHoja =
+        Table.SelectRows(
+            ExpandExcel,
+            each [Item] = "Detalle_Practicas"
+            and [Kind] = "Sheet"
+        ),
+
+    Transformar =
+        Table.AddColumn(
+            FiltrarHoja,
+            "Tabla",
+            each
+                let
+                    skip = Table.Skip([Data],5),
+                    headers = Table.PromoteHeaders(skip,[PromoteAllScalars=true])
+                in
+                    headers
+        ),
+
+    Expand =
+        Table.ExpandTableColumn(
+            Transformar,
+            "Tabla",
+            {
+                "FECHA_DE_PRESTACION",
+                "APELLIDO_Y_NOMBRE",
+                "NRO_PRESTACION",
+                "TIPO_DE_PRESTACION",
+                "NRO_BENEFICIO",
+                "NRO_ORDEN_DE_PRESTACION",
+                "MATRICULA",
+                "CODIGO_MODULO",
+                "C_PRACTICA",
+                "CANTIDAD",
+                "NRO_ORDEN_PRESTACION_PRACTICA",
+                "MODALIDAD_PRESTACION"
+            }
+        ),
+
+    Rename =
+        Table.RenameColumns(
+            Expand,
+            {{"NRO_BENEFICIO","NRO_AFILIADO"}}
+        ),
+
+    SourceFile =
+        Table.RenameColumns(
+            Rename,
+            {{"Name","SourceFile"}}
+        ),
+
+    Select =
+        Table.SelectColumns(
+            SourceFile,
+            {
+                "SourceFile",
+                "FECHA_DE_PRESTACION",
+                "APELLIDO_Y_NOMBRE",
+                "NRO_PRESTACION",
+                "TIPO_DE_PRESTACION",
+                "MODALIDAD_PRESTACION",
+                "NRO_AFILIADO",
+                "NRO_ORDEN_DE_PRESTACION",
+                "MATRICULA",
+                "CODIGO_MODULO",
+                "C_PRACTICA",
+                "CANTIDAD",
+                "NRO_ORDEN_PRESTACION_PRACTICA"
+            }
+        ),
+
+    Types =
+        Table.TransformColumnTypes(Select,{{"FECHA_DE_PRESTACION", type date}, {"CODIGO_MODULO", Int64.Type}, {"CANTIDAD", Int64.Type}, {"C_PRACTICA", type text}, {"MODALIDAD_PRESTACION", type text}, {"APELLIDO_Y_NOMBRE", type text}}),
+
+    PK =
+        Table.AddColumn(
+            Types,
+            "PK",
+            each
+                Text.Combine(
+                    {
+                        Text.From([NRO_AFILIADO]),
+                        Text.From([C_PRACTICA]),
+                        Text.From([FECHA_DE_PRESTACION])
+                    },"-"
+                )
+        ),
+
+    FK =
+        Table.AddColumn(
+            PK,
+            "FK_Internacion",
+            each
+                Text.Combine(
+                    {
+                        Text.From([NRO_AFILIADO]),
+                        Text.From([NRO_PRESTACION])
+                    },"-"
+                )
+        ),
+    #"Inserted Start of Month" = Table.AddColumn(FK, "Fecha", each Date.StartOfMonth([FECHA_DE_PRESTACION]), type date)
+
+in
+    #"Inserted Start of Month"
