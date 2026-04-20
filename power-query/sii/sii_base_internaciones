@@ -1,0 +1,89 @@
+let
+    Source = SII_Files,
+
+    ExpandExcel =
+        Table.ExpandTableColumn(
+            Source,
+            "Excel",
+            {"Item","Kind","Data"}
+        ),
+
+    Filtrar =
+        Table.SelectRows(
+            ExpandExcel,
+            each [Item]="Detalle_Internaciones"
+        ),
+
+    Transformar =
+        Table.AddColumn(
+            Filtrar,
+            "Tabla",
+            each
+                let
+                    skip = Table.Skip([Data],5),
+                    headers = Table.PromoteHeaders(skip,[PromoteAllScalars=true])
+                in
+                    headers
+        ),
+
+    Expand =
+        Table.ExpandTableColumn(
+            Transformar,
+            "Tabla",
+            {
+                "NRO_BENEFICIO",
+                "NRO_PRESTACION",
+                "APELLIDO_Y_NOMBRE",
+                "INGRESO_INTERNACION",
+                "EGRESO_INTERNACION",
+                "AREA",
+                "MOTIVO_DE_EGRESO",
+                "OBSERVACION"
+            }
+        ),
+
+    Rename =
+        Table.RenameColumns(
+            Expand,
+            {{"NRO_BENEFICIO","NRO_AFILIADO"}}
+        ),
+
+    SourceFile =
+        Table.RenameColumns(
+            Rename,
+            {{"Name","SourceFile"}}
+        ),
+
+    Types =
+        Table.TransformColumnTypes(
+            SourceFile,
+            {
+                {"INGRESO_INTERNACION", type datetime},
+                {"EGRESO_INTERNACION", type datetime}
+            }
+        ),
+
+    PK =
+        Table.AddColumn(
+            Types,
+            "PK",
+            each
+                Text.Combine(
+                    {
+                        Text.From([NRO_AFILIADO]),
+                        Text.From([NRO_PRESTACION])
+                    },"-"
+                )
+        ),
+
+    Fecha =
+        Table.AddColumn(
+            PK,
+            "Fecha",
+            each DateTime.Date([EGRESO_INTERNACION]),
+            type date
+        ),
+    #"Removed Columns" = Table.RemoveColumns(Fecha,{"Content", "Folder Path", "Item", "Kind", "Data"})
+
+in
+    #"Removed Columns"
