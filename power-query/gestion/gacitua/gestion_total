@@ -1,0 +1,61 @@
+let
+    Source = Gestion_Base,
+
+    #"Replaced Value" =
+        Table.ReplaceValue(
+            Source,
+            ",",
+            "",
+            Replacer.ReplaceText,
+            {"PacienteNom"}
+        ),
+
+    #"Removed Columns" =
+        Table.RemoveColumns(
+            #"Replaced Value",
+            {"Content", "Item", "Kind", "Data"}
+        ),
+
+    FK_Nomenclador =
+        Table.AddColumn(
+            #"Removed Columns",
+            "FK_Nomenclador",
+            each
+                Text.Combine(
+                    {
+                        Text.From([Fecha],"es-AR"),
+                        Text.From([Practica])
+                    },
+                    "-"
+                ),
+            type text
+        ),
+
+    #"Inserted Merged Column" =
+        Table.AddColumn(
+            FK_Nomenclador,
+            "FK_Paciente",
+            each
+                Text.Combine(
+                    {
+                        Text.From([Fecha],"es-AR"),
+                        [OrdenAfiliado],
+                        Text.From([Practica])
+                    },
+                    "-"
+                ),
+            type text
+        ),
+
+    #"Removed Duplicates" =
+        Table.Distinct(
+            #"Inserted Merged Column",
+            {"FK_Paciente"}
+        ),
+
+    #"Changed Type" =
+        Table.TransformColumnTypes(#"Removed Duplicates",{{"Nombre", type text}, {"Mutual", type text}, {"MutualNom", type text}, {"PrestadorNom", type text}, {"SheetName", type text}}),
+    #"Removed Blank Rows" = Table.SelectRows(#"Changed Type", each not List.IsEmpty(List.RemoveMatchingItems(Record.FieldValues(_), {"", null})))
+
+in
+    #"Removed Blank Rows"
