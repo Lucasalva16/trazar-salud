@@ -1,0 +1,133 @@
+let
+    Source = Gestion_Files,
+
+    ExpandExcel =
+        Table.ExpandTableColumn(
+            Source,
+            "Excel",
+            {"Item","Kind","Data"}
+        ),
+
+    RenameMeta =
+        Table.RenameColumns(
+            ExpandExcel,
+            {{"Item","SheetName"}}
+        ),
+
+    FiltrarHoja =
+        Table.SelectRows(
+            RenameMeta,
+            each [SheetName] = "Hoja1"
+        ),
+
+    Transformar =
+        Table.AddColumn(
+            FiltrarHoja,
+            "Tabla",
+            each Table.PromoteHeaders([Data],[PromoteAllScalars=true])
+        ),
+
+    Expand =
+        Table.ExpandTableColumn(
+            Transformar,
+            "Tabla",
+            {
+                "Lote","Item","PM","Mutual","MutualNom",
+                "FacturacionMes","FacturacionAno","Tipo",
+                "CerradaI","IvaVentas","Presentada","Anulada",
+                "PacienteCod","PacienteNom","OrdenNumero",
+                "OrdenSerie","OrdenAfiliado","Nomenclador",
+                "Practica","PracticaSub","Medicamento","Nombre",
+                "Cantidad","Fecha","PrestadorCod",
+                "PrestadorFacturaEnCod","PrestadorNom",
+                "PrestadorMat","PorAfiliado","PorCategori",
+                "Importe","Coseguro","Tramite","Siniestro","OK"
+            }
+        ),
+
+    Rename =
+        Table.RenameColumns(
+            Expand,
+            {{"Name","SourceFile"}}
+        ),
+
+
+    CleanFecha =
+        Table.TransformColumns(
+            Rename,
+            {
+                {
+                    "Fecha",
+                    each try Date.From(_) 
+                    otherwise try Date.FromText(_, "es-AR") 
+                    otherwise null,
+                    type date
+                }
+            }
+        ),
+
+    CleanNumbers =
+    Table.TransformColumns(
+        CleanFecha,
+        {
+            {"Practica", each try Number.From(_) otherwise null, Int64.Type},
+            {"Cantidad", each try Number.From(_) otherwise null, Int64.Type},
+            {"Importe", each try Number.From(_) otherwise null, type number},
+            {"Coseguro", each try Number.From(_) otherwise null, type number}
+        }
+    ),
+
+    Types =
+        Table.TransformColumnTypes(
+            CleanNumbers,
+            {
+                {"Lote", type text},
+                {"Item", type text},
+                {"PM", type text},
+                {"Mutual", type text},
+                {"MutualNom", type text},
+                {"FacturacionMes", type text},
+                {"FacturacionAno", type text},
+                {"Tipo", type text},
+                {"CerradaI", type text},
+                {"IvaVentas", type text},
+                {"Presentada", type text},
+                {"Anulada", type text},
+                {"PacienteCod", type text},
+                {"PacienteNom", type text},
+                {"OrdenNumero", type text},
+                {"OrdenSerie", type text},
+                {"OrdenAfiliado", type text},
+                {"Nomenclador", type text},
+
+                {"PracticaSub", type text},
+                {"Medicamento", type text},
+                {"Nombre", type text},
+
+                {"PrestadorCod", type text},
+                {"PrestadorFacturaEnCod", type text},
+                {"PrestadorNom", type text},
+                {"PrestadorMat", type text},
+                {"PorAfiliado", type text},
+                {"PorCategori", type text},
+
+
+                {"Tramite", type text},
+                {"Siniestro", type text},
+                {"OK", type text}
+            }
+        ),
+
+    #"Removed Blank Rows" =
+        Table.SelectRows(
+            Types,
+            each not List.IsEmpty(
+                List.RemoveMatchingItems(
+                    Record.FieldValues(_),
+                    {"", null}
+                )
+            )
+        )
+
+in
+    #"Removed Blank Rows"
